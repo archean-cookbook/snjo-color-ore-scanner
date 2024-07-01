@@ -24,7 +24,9 @@ If you attach a terrain scanner on port 5, you can select "land" and "sea" on th
 
 ## Power saving features
 When the vehicle isn't moving, the scanner stops turning and scanning to save power. This can be disabled by setting $allowRestMode to 0.
+
 If you don't select either land or sea, the terrain scanner doesn't draw any power.
+
 If no ores are selected, the ore scanner doesn't draw any power.
 
 
@@ -62,7 +64,9 @@ If no ores are selected, the ore scanner doesn't draw any power.
 
 
 ## Troubleshooting
-If you see circular stripes in the output near the center, reduce the $maxScanSteps value or check that the scanner is connected directly to a battery. If power is routed through a junction, the scanner may run out of power before all scan steps are done per tick, and will output bad data.
+If you see circular stripes in the output near the center, reduce the $maxScanSteps value or check that the scanner is connected directly to a battery. 
+
+If power is routed through a junction, the scanner may run out of power before all scan steps are done per tick, and will output bad data.
 
 ## Source code
 The code is based on *batcholi* and *Drya'd BMD's* blueprints, but with extra bells and whistles.
