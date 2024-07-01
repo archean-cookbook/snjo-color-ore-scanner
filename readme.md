@@ -12,12 +12,12 @@ There's a section at the top of the code to specify ores to scan for, scanning s
 You can also artificially boost the return value of ores, so that if there's a trace amount of an ore, it will still output in a strong color.
 
 ## Computer Ports
-0 - Screen
-1 - Ore scanner
-2 - Pivot (make sure to turn off servo mode with V)
-3 - Speed sensor (can be dropped if $allowRestMode is 0)
-4 - Angular speed sensor (can be dropped if $allowRestMode is 0)
-5 - Terrain scanner (optional)
+0. Screen
+1. Ore scanner
+2. Pivot (make sure to turn off servo mode with V)
+3. Speed sensor (can be dropped if $allowRestMode is 0)
+4. Angular speed sensor (can be dropped if $allowRestMode is 0)
+5. Terrain scanner (optional)
 
 ## Optional terrain scanner
 If you attach a terrain scanner on port 5, you can select "land" and "sea" on the green and blue channel to show the terrain on screen.
