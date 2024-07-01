@@ -262,7 +262,13 @@ function @drawRangeCircles()
 		if $i > 0
 			var $radius = ($circleIncrements*$i / $max_distance) * ($screen.height/2)
 			$screen.draw_circle($cx,$cy,$radius,gray,0)
-			$screen.write($cx-10, $cy+$radius+2, gray, ($i*$circleIncrements):text & "m")
+			var $labelDist = ($i*$circleIncrements):text & "m")
+			var $labelWidth = size($labelDist)*$screen.char_w
+			var $labelHeight = $screen.char_w
+			var $labelX = $cx-$labelWidth/2
+			var $labelY = $cy+$radius-$labelHeight/2-1
+			$screen.draw_rect($labelX, $labelY,$labelX+$labelWidth,$labelY+$labelHeight+1,0,color(0,0,0,128))
+			$screen.write($labelX, $cy+$radius-4, white, ($i*$circleIncrements):text & "m")
 	$screen.draw_circle($cx,$cy,2,white,0)
 	
 
