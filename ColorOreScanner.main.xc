@@ -26,14 +26,12 @@ const $orenerf2 = 1 ; use values between 0-1
 const $orenerf3 = 1 ; use values between 0-1
 
 ; CUSTOMIZE SCAN RANGE
-const $shortRange = 250
-const $mediumRange = 1000
-const $longRange = 5000
+array $ranges : number
 
 ; SCAN STEPS (AND TROUBLESHOOTING)
 ; Use this to limit power usage and server impact, but decrease the line density on screen.
 ; Max allowed is scan steps is 100, lower resolution screens use fewer lines.
-;If you see circular stripes in the output near the center, reduce the $maxScanSteps value 
+;If you see circular stripes in the output near the center, reduce the $maxScanSteps value
 ;or check that the scanner is connected directly to a battery. If power is routed through a junction,
 ;the scanner may run out of power before all scan steps are done per tick, and will output bad data.
 const $maxScanSteps = 40
@@ -57,7 +55,7 @@ const $ButtonHeight = 25 ; reduce this if the menus don't fit on screen. Bigger 
 ; VARIABLES ----------------
 
 array $oreNames:text
-var $max_distance = $mediumRange ; gets changed by UI buttons
+var $max_distance = 1000 ; gets changed by UI buttons
 
 var $lastScan = 0 ; timestamp of last completed scan
 
@@ -80,7 +78,7 @@ function @loadStoredValue($value:text,$default:text):text
 	else
 		print ("stored value loaded",$value)
 		return $value
-		
+
 function @loadStoredValues()
 	$ore1 = @loadStoredValue($ore1,$ore1Default)
 	$ore2 = @loadStoredValue($ore2,$ore2Default)
@@ -120,7 +118,7 @@ function @drawRangeButton($index:number, $range:number)
 		$max_distance = $range
 		@refreshScreen()
 		$resting = 0
-		
+
 function @drawFunctionButton($index:number, $function:text, $extrawidth:number)
 	;ON/OFF and CONFIG buttons
 	var $top = $index*($ButtonHeight+$ButtonPadding)
@@ -139,7 +137,7 @@ function @drawFunctionButton($index:number, $function:text, $extrawidth:number)
 			$resting = 0
 		if $function == "CONFIG"
 			$showOreMenu = 1
-			
+
 function @drawPowerButtons()
 	;on/off buttons
 	var $bwidth = 5
@@ -147,15 +145,14 @@ function @drawPowerButtons()
 		@drawFunctionButton(1,"TURN OFF", $bwidth)
 	else
 		@drawFunctionButton(1,"TURN ON", $bwidth)
-	
+
 function @drawRangeButtons()
 	;range buttons
 	var $top = 5
 	var $left = $screen.width-64
 	$screen.write($left,$top,white,"SCAN RANGE")
-	@drawRangeButton(1,$shortrange)
-	@drawRangeButton(2,$mediumrange)
-	@drawRangeButton(3,$longrange)
+	foreach $ranges ($key, $value)
+		@drawRangeButton($key,$value)
 
 ;REST MODE, stop scanning when the vehicle is stationary ------------------
 
@@ -181,13 +178,13 @@ var $terrainScale = 0.0005 ; higher values go bright faster, less sensitive
 var $seaScale = 0.0003 ; higher values goes to black quicker as the water is deeper, more sensitive
 function @terrainSelected() : number
 	return $ore1 == "land" || $ore2 == "land"  || $ore3 == "land" || $ore1 == "sea" || $ore2 == "sea" || $ore3 == "sea"
-	
+
 function @oreSelected() : number
 	foreach $oreNames ($i,$o)
 		if ($o == $ore1 || $o == $ore2 || $o == $ore3) && ($o != "off" && $o != "land" && $o != "sea")
 			return 1
 	return 0
-	
+
 function @getChannelStrength($channel:number,$resource:text,$nerf:number):number
 	if $resource == "land"
 		if $terrain > 0
@@ -206,10 +203,10 @@ function @getChannelStrength($channel:number,$resource:text,$nerf:number):number
 
 function @performScan()
 	output_number($pivot_io,0,$rotSpeed)
-		
+
 	;fade out to black, only works if above 0.5???
-	$screen.draw(0,0,color(0,0,0,0.4),$screen.width,$screen.height)	
-		
+	$screen.draw(0,0,color(0,0,0,0.4),$screen.width,$screen.height)
+
 	var $half_width = $screen.width/2
 	var $half_height = $screen.height/2
 	var $steps = min(min($half_height, $maxScanSteps),100) ;steps above 100 will return bad values
@@ -221,7 +218,7 @@ function @performScan()
 			$composite=input_text($scanner_io,$i)
 		if @terrainSelected()
 			$terrain=input_number($terrain_io,$i)
-			
+
 		;boost ore numbers
 		if $composite.$ore1 > 0 && $composite.$ore1 < $oreboost1
 			$composite.$ore1 = min($oreboost1,1)
@@ -229,7 +226,7 @@ function @performScan()
 			$composite.$ore2 = min($oreboost2,1)
 		if $composite.$ore3 > 0 && $composite.$ore3 < $oreboost3
 			$composite.$ore3 = min($oreboost3,1)
-						
+
 		var $step= ($i+1)/$steps
 		var $distance = $step*$max_distance
 		output_number($scanner_io,$i,$distance)
@@ -245,32 +242,25 @@ function @performScan()
 		var $xx=(1-$x*$step)*$half_width
 		var $yy=(1-$y*$step)*$half_height
 		$screen.draw_circle($xx,$yy,2,0,$color) ; paint the ore dot
-		
+
 function @stopPivot()
 	output_number($pivot_io,0,0)
-	
+
 function @drawRangeCircles()
-	; draw the range circles and distance labels		
+	; draw the range circles and distance labels
 	var $cx = $screen.width/2 ;center screen
 	var $cy = $screen.height/2
-	var $circleIncrements = 100
-	if $max_distance > 1000
-		$circleIncrements = 500
-	if $max_distance < 500
-		$circleIncrements = 50
+	var $circleIncrements = $max_distance / 10
+	if $max_distance > 1000:
+
 	repeat 11 ($i)
 		if $i > 0
 			var $radius = ($circleIncrements*$i / $max_distance) * ($screen.height/2)
+			var $text = text("{}{}",$circleIncrements*$i*$scale)
 			$screen.draw_circle($cx,$cy,$radius,gray,0)
-			var $labelDist = ($i*$circleIncrements):text & "m")
-			var $labelWidth = size($labelDist)*$screen.char_w
-			var $labelHeight = $screen.char_w
-			var $labelX = $cx-$labelWidth/2
-			var $labelY = $cy+$radius-$labelHeight/2-1
-			$screen.draw_rect($labelX, $labelY,$labelX+$labelWidth,$labelY+$labelHeight+1,0,color(0,0,0,128))
-			$screen.write($labelX, $cy+$radius-4, white, ($i*$circleIncrements):text & "m")
+			$screen.write($cx-10, $cy+$radius+2, gray, ($i*$circleIncrements):text & "m")
 	$screen.draw_circle($cx,$cy,2,white,0)
-	
+
 
 ; ORE SELECT DISPLAY/MENU  --------------------------------
 
@@ -320,12 +310,12 @@ function @drawOreButton($X:number, $Y:number, $oreNumber:number, $oreName:text)
 	var $Ybuttons = 6
 	var $buttonRowNum = $oreNumber % $Ybuttons
 	var $buttonColNum = floor($oreNumber/$Ybuttons
-	
+
 	var	$left = $X+ ($buttonColNum*$ButtonExtWidth)
 	var $top = $Y + $buttonPadding + ($ButtonExtHeight*$buttonRowNum)
 	var $right = $left+$ButtonWidth
 	var $bottom = $top+$ButtonHeight
-	
+
 	var $bg = black
 	if $oreName == @getSelectedOre($oreNumber)
 		$bg = gray
@@ -362,12 +352,17 @@ function @drawOreSelect()
 		;if $screen.button_rect($left,$top,$left+$ButtonWidth+5,$top+$ButtonHeight,white,black)
 		;	$showOreMenu = 1
 		;$screen.write($left+4, $top+$ButtonTextPadding, white, "CONFIG")
-		
+
 
 ; EXECUTION --------------------------------
 
-init 
+init
 	@loadStoredValues()
+	$ranges.append(250)
+	$ranges.append(1000)
+	$ranges.append(5000)
+	$ranges.append(10000)
+	$ranges.append(20000)
 	@refreshScreen()
 	print("Booting ore scanner")
 	print("Screen dimensions: " & $screen.width:text & "x" & $screen.height:text)
@@ -391,15 +386,15 @@ init
 	$oreNames.append("sea")
 	$oreNames.append("off")
 
-update	
+update
 	$screen.text_size($textSize)
 	$charHeight = $screen.char_h
 	$charWidth = $screen.char_w
 	var $screenCenterX = $screen.width / 2
 	var $screenCenterY = $screen.height / 2
-	$ButtonTextPadding = ($ButtonHeight-$charHeight)/2 
+	$ButtonTextPadding = ($ButtonHeight-$charHeight)/2
 	$angle = input_number($pivot_io, 0) * 2pi ; check the current pivot angle
-	
+
 	if $angle < $oldAngle || $resting
 		@updateRestMode()
 	$oldAngle = $angle
@@ -416,7 +411,6 @@ update
 	else
 		@performScan()
 		@drawRangeCircles()
-		
 
 	@drawPowerButtons()
 	@drawRangeButtons()
