@@ -33,14 +33,15 @@ const $longRange = 5000
 ; SCAN STEPS (AND TROUBLESHOOTING)
 ; Use this to limit power usage and server impact, but decrease the line density on screen.
 ; Max allowed is scan steps is 100, lower resolution screens use fewer lines.
-;If you see circular stripes in the output near the center, reduce the $maxScanSteps value 
-;or check that the scanner is connected directly to a battery. If power is routed through a junction,
-;the scanner may run out of power before all scan steps are done per tick, and will output bad data.
+; If you see circular stripes in the output near the center, reduce the $maxScanSteps value 
+; or check that the scanner is connected directly to a battery. If power is routed through a junction,
+; the scanner may run out of power before all scan steps are done per tick, and will output bad data.
 const $maxScanSteps = 40
-
+var $scanArc = 360 ; 1-360. change between full circle scan or narrow beam, which is faster to update the section you care about
 const $rotSpeed = 0.10 ;how fast the scanner spins
+var $scanDuration = 25 * 20; the amount of time in ticks (25*20 is 20s) to scan before going to sleep if there's no movement of the vehicle
 
-; ATTACHED DEVICES, update if neede
+; ATTACHED DEVICES, update if needed, You can replace port numbers with device names. (i.e. set $scanner_io to "ore_scanner")
 
 var $screen = screen(0,0) ; COMPUTER PORT 0: monitor
 const $scanner_io = 1	 ; COMPUTER PORT 1: ore scanner
@@ -56,6 +57,7 @@ const $ButtonHeight = 25 ; reduce this if the menus don't fit on screen. Bigger 
 ; END OF OPTION SECTION ----------------
 ; VARIABLES ----------------
 
+var $scanDurationCount = $scanDuration
 array $oreNames:text
 var $max_distance = $mediumRange ; gets changed by UI buttons
 
@@ -63,8 +65,8 @@ var $lastScan = 0 ; timestamp of last completed scan
 
 var $resting = 0 ; gets set to 1 when the vehicle isn't moving or rotating, overriden by $allowRestMode
 var $angle = 0 ;current pivot angle
-var $oldAngle = 0 ; used by rest mode check
-var $extraScanRotation = 0 ;perform an extra full revolution after a change
+;var $oldAngle = 0 ; used by rest mode check
+;var $extraScanRotation = 0 ;perform an extra full revolution after a change
 var $showOreMenu = 0
 
 ; STORED VALUES ----------
@@ -98,7 +100,8 @@ const $ButtonExtWidth = $ButtonWidth + $ButtonPadding
 const $ButtonExtHeight = $ButtonHeight + $ButtonPadding
 
 function @refreshScreen()
-	$extraScanRotation = 1
+	;$extraScanRotation = 1
+	$scanDurationCount = $scanDuration
 	$screen.blank()
 	;Transparent screen:
 	;$screen.blank(color(10,10,10,0)
@@ -127,9 +130,8 @@ function @drawFunctionButton($index:number, $function:text, $extrawidth:number)
 	var $left = $ButtonPadding
 	var $right = $ButtonWidth+$ButtonPadding+$extrawidth
 	var $bottom = $top + $ButtonHeight
-	$screen.draw_rect($left,$top,$right, $bottom, white, black)
-	$screen.write($left+4,$top+$ButtonTextPadding,white,$function)
-	if $screen.button_rect($left, $top, $right, $bottom, 0)
+	;$screen.draw_rect($left,$top,$right, $bottom, white, black)
+	if $screen.button_rect($left, $top, $right, $bottom, white, black)
 		if $function == "TURN OFF"
 			$scan = 0
 			@refreshScreen()
@@ -139,7 +141,20 @@ function @drawFunctionButton($index:number, $function:text, $extrawidth:number)
 			$resting = 0
 		if $function == "CONFIG"
 			$showOreMenu = 1
-			
+	$screen.write($left+4,$top+$ButtonTextPadding,white,$function)
+
+function @drawArcButton($top:number,$col:number,$value:number)
+	var $bw = $buttonHeight  ; square button, use height for both
+	;var $top = $line*($ButtonHeight+$ButtonPadding)
+	var $left = $col*($bw+$ButtonPadding)+$ButtonPadding
+	var $right = $left + $bw
+	var $bottom = $top + $ButtonHeight
+	if $screen.button_rect($left, $top, $right, $bottom, white,black)
+		$scanArc = $value
+		$scanDurationCount = $scanDuration
+		$screen.blank(black)
+	$screen.write($left+4,$top+$ButtonTextPadding,white,$value:text)
+	
 function @drawPowerButtons()
 	;on/off buttons
 	var $bwidth = 5
@@ -160,19 +175,22 @@ function @drawRangeButtons()
 ;REST MODE, stop scanning when the vehicle is stationary ------------------
 
 function @updateRestMode()
+	;if $scanDurationCount <= 0 || $resting
+
 	var $speed = input_number($speed_io,0)
 	var $rot0 = abs(input_number($angle_io,0))
 	var $rot1 = abs(input_number($angle_io,1))
 	var $rot2 = abs(input_number($angle_io,2))
 	var $rotating = $rot0 > 0.02 || $rot1 > 0.02 || $rot2 > 0.02
-	if $angle < $oldAngle || $resting ; check after each full rotation of the pivot
-		if $extraScanRotation == 1
-			$resting = 0
-			$extraScanRotation = 0
-		elseif $speed < 0.1 && $rotating == 0 && $allowRestMode ; enable rest mode when the vehicle is still
-			$resting = 1
-		else
-			$resting = 0 ; disable rest mode
+	var $standingStill = $speed < 0.1 && $rotating == 0
+	if $standingStill && $allowRestMode && $scanDurationCount <= 0.1; enable rest mode when the vehicle is still
+		$resting = 1
+	elseif !$standingStill && $resting ; wake up when moved
+		$resting = 0
+		$scanDurationCount = $scanDuration
+	else
+		$resting = 0
+	$scanDurationCount = max($scanDurationCount - 1, 0)
 
 ;TERRAIN AND ORE SCAN RETURN VALUES ---------------
 var $terrain = 0
@@ -204,8 +222,28 @@ function @getChannelStrength($channel:number,$resource:text,$nerf:number):number
 
 ;TERRAIN AND ORE SCANNING  ---------------
 
+var $rot = $rotSpeed
+function @updatePivotAngle()
+	var $chunk = 2pi / 360
+	var $scanArcReal = $scanArc / 2
+	if $scanArcReal < 360
+		if $angle > $chunk*$scanArcReal  && $angle < $chunk * 180
+			$rot = -$rotSpeed
+			;print("go -",$scanArc,$angle,">",$chunk*$scanArc)
+		elseif $angle < $chunk * (360-$scanArcReal) && $angle > $chunk * 180
+			$rot = $rotSpeed
+			;print("go +", (12-$scanArc),$angle,"<",$chunk * (360-$scanArc))
+		else
+			;$rot = $rotSpeed
+			;print("huh?")
+	else
+		$rot = $rotSpeed
+		;print("default rot")
+	output_number($pivot_io,0,$rot)
+
 function @performScan()
-	output_number($pivot_io,0,$rotSpeed)
+	@updatePivotAngle()
+	;output_number($pivot_io,0,$rotSpeed)
 		
 	;fade out to black, only works if above 0.5???
 	$screen.draw(0,0,color(0,0,0,0.4),$screen.width,$screen.height)	
@@ -232,9 +270,12 @@ function @performScan()
 						
 		var $step= ($i+1)/$steps
 		var $distance = $step*$max_distance
-		output_number($scanner_io,$i,$distance)
+		if @oreSelected()
+			output_number($scanner_io,$i,$distance)
+			;print("feed ore scanner")
 		if @terrainSelected()
 			output_number($terrain_io,$i,$distance)
+			;print("feed terrain scanner")
 
 		var $R = clamp(@getChannelStrength(1,$ore1,$orenerf1)*255*$orenerf1,0,255);min($composite.$ore1*255*$orenerf1,255)
 		var $G = clamp(@getChannelStrength(2,$ore2,$orenerf2)*255*$orenerf2,0,255)
@@ -254,9 +295,11 @@ function @drawRangeCircles()
 	var $cx = $screen.width/2 ;center screen
 	var $cy = $screen.height/2
 	var $circleIncrements = 100
-	if $max_distance > 1000
+	if $max_distance > 5000
+		$circleIncrements = 1000
+	elseif $max_distance > 1000
 		$circleIncrements = 500
-	if $max_distance < 500
+	elseif $max_distance < 500
 		$circleIncrements = 50
 	repeat 11 ($i)
 		if $i > 0
@@ -400,9 +443,9 @@ update
 	$ButtonTextPadding = ($ButtonHeight-$charHeight)/2 
 	$angle = input_number($pivot_io, 0) * 2pi ; check the current pivot angle
 	
-	if $angle < $oldAngle || $resting
-		@updateRestMode()
-	$oldAngle = $angle
+	;if $angle < $oldAngle || $resting
+	@updateRestMode()
+	;$oldAngle = $angle
 
 	if $scan == 0 ; user has turned the scanner off via UI button
 		@drawRangeCircles()
@@ -417,9 +460,12 @@ update
 		@performScan()
 		@drawRangeCircles()
 		
-
 	@drawPowerButtons()
 	@drawRangeButtons()
 	@drawOreNames()
 	@drawOreSelect()
+	var $arcY = $screen.height-$buttonHeight-$buttonpadding
+	@drawArcButton($arcY,0,360)
+	@drawArcButton($arcY,1,180)
+	@drawArcButton($arcY,2,90)
 ;end of file
