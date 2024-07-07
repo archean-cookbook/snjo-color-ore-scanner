@@ -109,6 +109,11 @@ function @refreshScreen()
 
 ;UI BUTTONS etc --------------------
 
+function @colorOn($value:number,$oncolor:number,$offcolor:number):number
+	if $value
+		return $oncolor
+	return $offcolor
+
 function @drawRangeButton($index:number, $range:number)
 	var $top = $index*($ButtonHeight+$ButtonPadding)
 	var $left = $screen.width-$ButtonWidth-$ButtonPadding
@@ -144,16 +149,16 @@ function @drawFunctionButton($index:number, $function:text, $extrawidth:number)
 	$screen.write($left+4,$top+$ButtonTextPadding,white,$function)
 
 function @drawArcButton($top:number,$col:number,$value:number)
-	var $bw = $buttonHeight  ; square button, use height for both
+	var $bw = $buttonHeight*1.25
 	;var $top = $line*($ButtonHeight+$ButtonPadding)
 	var $left = $col*($bw+$ButtonPadding)+$ButtonPadding
 	var $right = $left + $bw
 	var $bottom = $top + $ButtonHeight
-	if $screen.button_rect($left, $top, $right, $bottom, white,black)
+	if $screen.button_rect($left, $top, $right, $bottom, white,@colorOn($value == $scanarc,blue,black))
 		$scanArc = $value
 		$scanDurationCount = $scanDuration
 		$screen.blank(black)
-	$screen.write($left+4,$top+$ButtonTextPadding,white,$value:text)
+	$screen.write($left+4,$top+$ButtonTextPadding,white,$value:text & "°")
 	
 function @drawPowerButtons()
 	;on/off buttons
