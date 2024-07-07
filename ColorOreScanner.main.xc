@@ -241,6 +241,8 @@ function @updatePivotAngle()
 		;print("default rot")
 	output_number($pivot_io,0,$rot)
 
+var $offsetY = 0
+var $scanZoom = 1
 function @performScan()
 	@updatePivotAngle()
 	;output_number($pivot_io,0,$rotSpeed)
@@ -250,7 +252,15 @@ function @performScan()
 		
 	var $half_width = $screen.width/2
 	var $half_height = $screen.height/2
-	var $steps = min(min($half_height, $maxScanSteps),100) ;steps above 100 will return bad values
+	if $scanArc > 180
+		$offsetY = 0
+		$scanZoom = 1
+	else
+		$offsetY = $half_height * 0.7
+		$scanZoom = 1.3
+		;print($offsetY)
+	; var $steps = min(min($half_height, $maxScanSteps),100) ;steps above 100 will return bad values
+	var $steps = min(min($half_height+$offsetY, $maxScanSteps),100) ;steps above 100 will return bad values
 
 	var $x = sin($angle)
 	var $y = cos($angle)
@@ -268,7 +278,7 @@ function @performScan()
 		if $composite.$ore3 > 0 && $composite.$ore3 < $oreboost3
 			$composite.$ore3 = min($oreboost3,1)
 						
-		var $step= ($i+1)/$steps
+		var $step= ($i+1)/$steps * $scanZoom
 		var $distance = $step*$max_distance
 		if @oreSelected()
 			output_number($scanner_io,$i,$distance)
@@ -284,7 +294,7 @@ function @performScan()
 		;var $B = min($composite.$ore3*255*$orenerf3,255)
 		var $color=color($R,$G,$B,255)
 		var $xx=(1-$x*$step)*$half_width
-		var $yy=(1-$y*$step)*$half_height
+		var $yy=(1-$y*$step)*$half_height + $offsetY
 		$screen.draw_circle($xx,$yy,2,0,$color) ; paint the ore dot
 		
 function @stopPivot()
@@ -293,7 +303,7 @@ function @stopPivot()
 function @drawRangeCircles()
 	; draw the range circles and distance labels		
 	var $cx = $screen.width/2 ;center screen
-	var $cy = $screen.height/2
+	var $cy = $screen.height/2 + $offsetY
 	var $circleIncrements = 100
 	if $max_distance > 5000
 		$circleIncrements = 1000
@@ -304,14 +314,14 @@ function @drawRangeCircles()
 	repeat 11 ($i)
 		if $i > 0
 			var $radius = ($circleIncrements*$i / $max_distance) * ($screen.height/2)
-			$screen.draw_circle($cx,$cy,$radius,gray,0)
+			$screen.draw_circle($cx,$cy,$radius*$scanZoom,gray,0)
 			var $labelDist = ($i*$circleIncrements):text & "m")
 			var $labelWidth = size($labelDist)*$screen.char_w
 			var $labelHeight = $screen.char_w
 			var $labelX = $cx-$labelWidth/2
 			var $labelY = $cy+$radius-$labelHeight/2-1
 			$screen.draw_rect($labelX, $labelY,$labelX+$labelWidth,$labelY+$labelHeight+1,0,color(0,0,0,128))
-			$screen.write($labelX, $cy+$radius-4, white, ($i*$circleIncrements):text & "m")
+			$screen.write($labelX, $cy+$radius*$scanZoom-4, white, ($i*$circleIncrements):text & "m")
 	$screen.draw_circle($cx,$cy,2,white,0)
 	
 
