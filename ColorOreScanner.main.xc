@@ -1,4 +1,6 @@
 ; COLOR ORE SCANNER by Snjo, based on batcholi and Drya'd BMD's blueprints
+; When moving this code into another computer, check main.xc for startup procedure, including runnin @oreinit()
+; If you're adapting it to a smaller screen, adjust the buttonHeight and buttonwidth values to fit the UI on screen.
 
 ; OPTION SECTION, EDIT VALUES TO TASTE ----------------
 ; If there are ores missing in the config menu, add them in the init section at the bottom of the file
@@ -43,12 +45,12 @@ var $scanDuration = 25 * 20; the amount of time in ticks (25*20 is 20s) to scan 
 
 ; ATTACHED DEVICES, update if needed, You can replace port numbers with device names. (i.e. set $scanner_io to "ore_scanner")
 
-var $screen = screen(0,0) ; COMPUTER PORT 0: monitor
-const $scanner_io = 1	 ; COMPUTER PORT 1: ore scanner
-const $pivot_io = 2	   ; COMPUTER PORT 2: robotic pivot
-const $speed_io = 3	   ; COMPUTER PORT 3: speed sensor
-const $angle_io = 4	   ; COMPUTER PORT 4: angular velocity sensor
-const $terrain_io = 5
+var $screenOre = screen(0,0) ; COMPUTER PORT 0: monitor
+const $scanner_io = "ore_scanner"	 ; COMPUTER PORT 1: ore scanner
+const $pivot_io = "ore_pivot"	   ; COMPUTER PORT 2: robotic pivot
+const $speed_io = "speed"	   ; COMPUTER PORT 3: speed sensor
+const $angle_io = "angle"	   ; COMPUTER PORT 4: angular velocity sensor
+const $terrain_io = "terrain_scanner"
 
 var $scan = 1 ; 1 means the scanner is ON, change this to 0 if you always want to startin OFF mode after rebooting
 
@@ -102,10 +104,10 @@ const $ButtonExtHeight = $ButtonHeight + $ButtonPadding
 function @refreshScreen()
 	;$extraScanRotation = 1
 	$scanDurationCount = $scanDuration
-	$screen.blank()
+	$screenOre.blank()
 	;Transparent screen:
-	;$screen.blank(color(10,10,10,0)
-	;$screen.draw_circle($screen.width/2,$screen.width/2,($screen.width/2)+1,black,black)
+	;$screenOre.blank(color(10,10,10,0)
+	;$screenOre.draw_circle($screenOre.width/2,$screenOre.width/2,($screenOre.width/2)+1,black,black)
 
 ;UI BUTTONS etc --------------------
 
@@ -116,15 +118,15 @@ function @colorOn($value:number,$oncolor:number,$offcolor:number):number
 
 function @drawRangeButton($index:number, $range:number)
 	var $top = $index*($ButtonHeight+$ButtonPadding)
-	var $left = $screen.width-$ButtonWidth-$ButtonPadding
-	var $right = $screen.width-$ButtonPadding
+	var $left = $screenOre.width-$ButtonWidth-$ButtonPadding
+	var $right = $screenOre.width-$ButtonPadding
 	var $bottom = $top + $ButtonHeight
 	if $max_distance == $range
-		$screen.draw_rect($left,$top,$right, $bottom, white, blue)
+		$screenOre.draw_rect($left,$top,$right, $bottom, white, blue)
 	else
-		$screen.draw_rect($left,$top,$right, $bottom, white, black)
-	$screen.write($left+4,$top+$ButtonTextPadding,white,$range:text)
-	if $screen.button_rect($left, $top, $right, $bottom, 0)
+		$screenOre.draw_rect($left,$top,$right, $bottom, white, black)
+	$screenOre.write($left+4,$top+$ButtonTextPadding,white,$range:text)
+	if $screenOre.button_rect($left, $top, $right, $bottom, 0)
 		$max_distance = $range
 		@refreshScreen()
 		$resting = 0
@@ -135,8 +137,8 @@ function @drawFunctionButton($index:number, $function:text, $extrawidth:number)
 	var $left = $ButtonPadding
 	var $right = $ButtonWidth+$ButtonPadding+$extrawidth
 	var $bottom = $top + $ButtonHeight
-	;$screen.draw_rect($left,$top,$right, $bottom, white, black)
-	if $screen.button_rect($left, $top, $right, $bottom, white, black)
+	;$screenOre.draw_rect($left,$top,$right, $bottom, white, black)
+	if $screenOre.button_rect($left, $top, $right, $bottom, white, black)
 		if $function == "TURN OFF"
 			$scan = 0
 			@refreshScreen()
@@ -146,7 +148,7 @@ function @drawFunctionButton($index:number, $function:text, $extrawidth:number)
 			$resting = 0
 		if $function == "CONFIG"
 			$showOreMenu = 1
-	$screen.write($left+4,$top+$ButtonTextPadding,white,$function)
+	$screenOre.write($left+4,$top+$ButtonTextPadding,white,$function)
 
 function @drawArcButton($top:number,$col:number,$value:number)
 	var $bw = $buttonHeight*1.25
@@ -154,11 +156,11 @@ function @drawArcButton($top:number,$col:number,$value:number)
 	var $left = $col*($bw+$ButtonPadding)+$ButtonPadding
 	var $right = $left + $bw
 	var $bottom = $top + $ButtonHeight
-	if $screen.button_rect($left, $top, $right, $bottom, white,@colorOn($value == $scanarc,blue,black))
+	if $screenOre.button_rect($left, $top, $right, $bottom, white,@colorOn($value == $scanarc,blue,black))
 		$scanArc = $value
 		$scanDurationCount = $scanDuration
-		$screen.blank(black)
-	$screen.write($left+4,$top+$ButtonTextPadding,white,$value:text & "°")
+		$screenOre.blank(black)
+	$screenOre.write($left+4,$top+$ButtonTextPadding,white,$value:text & "°")
 	
 function @drawPowerButtons()
 	;on/off buttons
@@ -171,8 +173,8 @@ function @drawPowerButtons()
 function @drawRangeButtons()
 	;range buttons
 	var $top = 5
-	var $left = $screen.width-64
-	$screen.write($left,$top,white,"SCAN RANGE")
+	var $left = $screenOre.width-64
+	$screenOre.write($left,$top,white,"SCAN RANGE")
 	@drawRangeButton(1,$shortrange)
 	@drawRangeButton(2,$mediumrange)
 	@drawRangeButton(3,$longrange)
@@ -253,10 +255,10 @@ function @performScan()
 	;output_number($pivot_io,0,$rotSpeed)
 		
 	;fade out to black, only works if above 0.5???
-	$screen.draw(0,0,color(0,0,0,0.4),$screen.width,$screen.height)	
+	$screenOre.draw(0,0,color(0,0,0,0.4),$screenOre.width,$screenOre.height)	
 		
-	var $half_width = $screen.width/2
-	var $half_height = $screen.height/2
+	var $half_width = $screenOre.width/2
+	var $half_height = $screenOre.height/2
 	if $scanArc > 180
 		$offsetY = 0
 		$scanZoom = 1
@@ -300,15 +302,15 @@ function @performScan()
 		var $color=color($R,$G,$B,255)
 		var $xx=(1-$x*$step)*$half_width
 		var $yy=(1-$y*$step)*$half_height + $offsetY
-		$screen.draw_circle($xx,$yy,2,0,$color) ; paint the ore dot
+		$screenOre.draw_circle($xx,$yy,2,0,$color) ; paint the ore dot
 		
 function @stopPivot()
 	output_number($pivot_io,0,0)
 	
 function @drawRangeCircles()
 	; draw the range circles and distance labels		
-	var $cx = $screen.width/2 ;center screen
-	var $cy = $screen.height/2 + $offsetY
+	var $cx = $screenOre.width/2 ;center screen
+	var $cy = $screenOre.height/2 + $offsetY
 	var $circleIncrements = 100
 	if $max_distance > 5000
 		$circleIncrements = 1000
@@ -318,30 +320,30 @@ function @drawRangeCircles()
 		$circleIncrements = 50
 	repeat 11 ($i)
 		if $i > 0
-			var $radius = ($circleIncrements*$i / $max_distance) * ($screen.height/2)
-			$screen.draw_circle($cx,$cy,$radius*$scanZoom,gray,0)
+			var $radius = ($circleIncrements*$i / $max_distance) * ($screenOre.height/2)
+			$screenOre.draw_circle($cx,$cy,$radius*$scanZoom,gray,0)
 			var $labelDist = ($i*$circleIncrements):text & "m")
-			var $labelWidth = size($labelDist)*$screen.char_w
-			var $labelHeight = $screen.char_w
+			var $labelWidth = size($labelDist)*$screenOre.char_w
+			var $labelHeight = $screenOre.char_w
 			var $labelX = $cx-$labelWidth/2
 			var $labelY = $cy+$radius-$labelHeight/2-1
-			$screen.draw_rect($labelX, $labelY,$labelX+$labelWidth,$labelY+$labelHeight+1,0,color(0,0,0,128))
-			$screen.write($labelX, $cy+$radius*$scanZoom-4, white, ($i*$circleIncrements):text & "m")
-	$screen.draw_circle($cx,$cy,2,white,0)
+			$screenOre.draw_rect($labelX, $labelY,$labelX+$labelWidth,$labelY+$labelHeight+1,0,color(0,0,0,128))
+			$screenOre.write($labelX, $cy+$radius*$scanZoom-4, white, ($i*$circleIncrements):text & "m")
+	$screenOre.draw_circle($cx,$cy,2,white,0)
 	
 
 ; ORE SELECT DISPLAY/MENU  --------------------------------
 
 function @drawOreNames()
 	; display the selected ores at the top of the screen in their colors
-	$screen.draw_rect($ButtonPadding,$ButtonPadding,30+$ButtonPadding,18,0,color(100,0,0))
-	$screen.write($ButtonPadding+3, 7, white ,$ore1)
+	$screenOre.draw_rect($ButtonPadding,$ButtonPadding,30+$ButtonPadding,18,0,color(100,0,0))
+	$screenOre.write($ButtonPadding+3, 7, white ,$ore1)
 
-	$screen.draw_rect($ButtonPadding+31,$ButtonPadding,60+$ButtonPadding,18,0,color(0,50,0))
-	$screen.write($ButtonPadding+33, 7, white ,$ore2)
+	$screenOre.draw_rect($ButtonPadding+31,$ButtonPadding,60+$ButtonPadding,18,0,color(0,50,0))
+	$screenOre.write($ButtonPadding+33, 7, white ,$ore2)
 
-	$screen.draw_rect($ButtonPadding+61,$ButtonPadding,90+$ButtonPadding,18,0,color(20,20,255))
-	$screen.write($ButtonPadding+63, 7, white ,$ore3)
+	$screenOre.draw_rect($ButtonPadding+61,$ButtonPadding,90+$ButtonPadding,18,0,color(20,20,255))
+	$screenOre.write($ButtonPadding+63, 7, white ,$ore3)
 
 var $selectedConfigOre = 1
 function @drawConfigOreButton($X:number, $Y:number, $oreNumber:number)
@@ -352,10 +354,10 @@ function @drawConfigOreButton($X:number, $Y:number, $oreNumber:number)
 	var $bg = black
 	if $oreNumber+1 == $selectedConfigOre
 		$bg = blue
-	if $screen.button_rect($left, $top, $right, $bottom, white, $bg)
+	if $screenOre.button_rect($left, $top, $right, $bottom, white, $bg)
 		$selectedConfigOre = $oreNumber+1
 		;print("selected ore " & ($selectedConfigOre):text)
-	$screen.write($left+4, $top+$ButtonTextPadding, white, "ORE " & ($oreNumber+1):text)
+	$screenOre.write($left+4, $top+$ButtonTextPadding, white, "ORE " & ($oreNumber+1):text)
 
 function @setOre($selecteConfigOre:number, $oreName:text)
 	if $selectedConfigOre == 1
@@ -387,11 +389,11 @@ function @drawOreButton($X:number, $Y:number, $oreNumber:number, $oreName:text)
 	var $bg = black
 	if $oreName == @getSelectedOre($oreNumber)
 		$bg = gray
-	if $screen.button_rect($left, $top, $right, $bottom, white, $bg)
+	if $screenOre.button_rect($left, $top, $right, $bottom, white, $bg)
 		print("selected ore: " & $oreName)
 		@setOre($selectedConfigOre, $oreName)
 		@refreshScreen()
-	$screen.write($left+4, $top+$ButtonTextPadding, white, $oreName)
+	$screenOre.write($left+4, $top+$ButtonTextPadding, white, $oreName)
 
 function @drawOreSelect()
 	var $left = $buttonPadding
@@ -401,34 +403,37 @@ function @drawOreSelect()
 	var $right = $left + $width
 	var $bottom = $top + $height
 	if $showOreMenu
-		$screen.draw_rect($left,$top,$right,$bottom,white,black)
+		$screenOre.draw_rect($left,$top,$right,$bottom,white,black)
 		@drawConfigOreButton($left, $top, 0)
 		@drawConfigOreButton($left, $top, 1)
 		@drawConfigOreButton($left, $top, 2)
 		foreach $oreNames ($i, $oreN)
 			@drawOreButton($left+$buttonWidth+($buttonPadding*2), $top, $i, $oreN)
-;		if $screen.button_rect($right-$ButtonExtWidth-$ButtonPadding-1, $bottom-$ButtonExtHeight, $right-$ButtonPadding, $bottom-$ButtonPadding, white, green)
+;		if $screenOre.button_rect($right-$ButtonExtWidth-$ButtonPadding-1, $bottom-$ButtonExtHeight, $right-$ButtonPadding, $bottom-$ButtonPadding, white, green)
 		var $OKleft = $left+$ButtonPadding+($ButtonExtWidth*1)
 		var $OKwidth = $ButtonExtWidth*3
-		if $screen.button_rect($OKleft, $bottom-$ButtonExtHeight-$ButtonPadding, $OKleft+$OKwidth-$ButtonPadding, $bottom-$ButtonPadding, white, green)
+		if $screenOre.button_rect($OKleft, $bottom-$ButtonExtHeight-$ButtonPadding, $OKleft+$OKwidth-$ButtonPadding, $bottom-$ButtonPadding, white, green)
 			$showOreMenu = 0
 			@refreshScreen()
 			$resting = 0
-		$screen.write($OKleft+($OKwidth/2)-($charwidth/2), $bottom-$ButtonExtHeight+$ButtonTextPadding, black, "OK")
+		$screenOre.write($OKleft+($OKwidth/2)-($charwidth/2), $bottom-$ButtonExtHeight+$ButtonTextPadding, black, "OK")
 	else
 		@drawFunctionButton(2,"CONFIG")
-		;if $screen.button_rect($left,$top,$left+$ButtonWidth+5,$top+$ButtonHeight,white,black)
+		;if $screenOre.button_rect($left,$top,$left+$ButtonWidth+5,$top+$ButtonHeight,white,black)
 		;	$showOreMenu = 1
-		;$screen.write($left+4, $top+$ButtonTextPadding, white, "CONFIG")
+		;$screenOre.write($left+4, $top+$ButtonTextPadding, white, "CONFIG")
 		
 
 ; EXECUTION --------------------------------
 
-init 
+function @setOreScreen($screenSet:screen)
+	$screenOre = $screenSet
+
+function @oreinit()
 	@loadStoredValues()
 	@refreshScreen()
 	print("Booting ore scanner")
-	print("Screen dimensions: " & $screen.width:text & "x" & $screen.height:text)
+	print("Screen dimensions: " & $screenOre.width:text & "x" & $screenOre.height:text)
 	print("Scanning for ores: " & $ore1 & ", " & $ore2 & ", " &  $ore3)
 	; All known ores. Add to this if more are added in game
 	$oreNames.append("Ag")
@@ -450,11 +455,11 @@ init
 	$oreNames.append("off")
 
 update	
-	$screen.text_size($textSize)
-	$charHeight = $screen.char_h
-	$charWidth = $screen.char_w
-	var $screenCenterX = $screen.width / 2
-	var $screenCenterY = $screen.height / 2
+	$screenOre.text_size($textSize)
+	$charHeight = $screenOre.char_h
+	$charWidth = $screenOre.char_w
+	var $screenCenterX = $screenOre.width / 2
+	var $screenCenterY = $screenOre.height / 2
 	$ButtonTextPadding = ($ButtonHeight-$charHeight)/2 
 	$angle = input_number($pivot_io, 0) * 2pi ; check the current pivot angle
 	
@@ -464,10 +469,10 @@ update
 
 	if $scan == 0 ; user has turned the scanner off via UI button
 		@drawRangeCircles()
-		$screen.text_size(2)
-		$screen.draw_rect($screenCenterX-(8*$screen.char_w), $screenCenterY-(1*$screen.char_h), $screenCenterX+(8*$screen.char_w), $screenCenterY+(1*$screen.char_h),red,black)
-		$screen.write($screenCenterX - (7*$screen.char_w), $screenCenterY-($screen.char_h/2), red ,"Scanner is OFF")
-		$screen.text_size(1)
+		$screenOre.text_size(2)
+		$screenOre.draw_rect($screenCenterX-(8*$screenOre.char_w), $screenCenterY-(1*$screenOre.char_h), $screenCenterX+(8*$screenOre.char_w), $screenCenterY+(1*$screenOre.char_h),red,black)
+		$screenOre.write($screenCenterX - (7*$screenOre.char_w), $screenCenterY-($screenOre.char_h/2), red ,"Scanner is OFF")
+		$screenOre.text_size(1)
 		@stopPivot()
 	elseif $resting
 		@stopPivot()
@@ -479,7 +484,7 @@ update
 	@drawRangeButtons()
 	@drawOreNames()
 	@drawOreSelect()
-	var $arcY = $screen.height-$buttonHeight-$buttonpadding
+	var $arcY = $screenOre.height-$buttonHeight-$buttonpadding
 	@drawArcButton($arcY,0,360)
 	@drawArcButton($arcY,1,180)
 	@drawArcButton($arcY,2,90)
