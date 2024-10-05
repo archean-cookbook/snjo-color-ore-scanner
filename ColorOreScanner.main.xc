@@ -322,7 +322,7 @@ function @drawRangeCircles()
 		if $i > 0
 			var $radius = ($circleIncrements*$i / $max_distance) * ($screenOre.height/2)
 			$screenOre.draw_circle($cx,$cy,$radius*$scanZoom,gray,0)
-			var $labelDist = ($i*$circleIncrements):text & "m")
+			var $labelDist = ($i*$circleIncrements):text & "m"
 			var $labelWidth = size($labelDist)*$screenOre.char_w
 			var $labelHeight = $screenOre.char_w
 			var $labelX = $cx-$labelWidth/2
@@ -379,7 +379,7 @@ function @getSelectedOre($selecteConfigOre:number) : text
 function @drawOreButton($X:number, $Y:number, $oreNumber:number, $oreName:text)
 	var $Ybuttons = 6
 	var $buttonRowNum = $oreNumber % $Ybuttons
-	var $buttonColNum = floor($oreNumber/$Ybuttons
+	var $buttonColNum = floor($oreNumber/$Ybuttons)
 	
 	var	$left = $X+ ($buttonColNum*$ButtonExtWidth)
 	var $top = $Y + $buttonPadding + ($ButtonExtHeight*$buttonRowNum)
